@@ -2,6 +2,7 @@
 // Headers
 ////////////////////////////////////////////////////////////
 #include <SFML/Window.hpp>
+#include <iostream>
 
 #define GLAD_GL_IMPLEMENTATION
 #include "gl.h"
@@ -22,8 +23,18 @@ int main()
     sf::ContextSettings contextSettings;
     contextSettings.depthBits = 24;
 
+    // Output all fullscreen modes
+    std::cout << "Fullscreen modes:" << std::endl;
+    for (auto& mode : sf::VideoMode::getFullscreenModes()) {
+        std::cout << " - " << mode.width << "x" << mode.height << "x" << mode.bitsPerPixel << std::endl;
+    }
+
     // Create the main window
-    sf::Window window(sf::VideoMode(640, 480), "SFML window with OpenGL", sf::Style::Default, contextSettings);
+    sf::VideoMode mode = sf::VideoMode::getDesktopMode();
+    sf::Window window(mode, "SFML window with OpenGL", sf::Style::None, contextSettings);
+
+    // Output current desktop mode
+    std::cout << "Desktop mode: " << mode.width << "x" << mode.height << "x" << mode.bitsPerPixel << std::endl;
 
     // Make it the active window for OpenGL calls
     window.setActive();
