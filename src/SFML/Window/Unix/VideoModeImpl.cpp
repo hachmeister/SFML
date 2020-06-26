@@ -57,39 +57,59 @@ std::vector<VideoMode> VideoModeImpl::getFullscreenModes()
             XRRScreenConfiguration* config = XRRGetScreenInfo(display, RootWindow(display, screen));
             if (config)
             {
-                // Get the available screen sizes
-                int nbSizes;
-                XRRScreenSize* sizes = XRRConfigSizes(config, &nbSizes);
-                if (sizes && (nbSizes > 0))
+                // Get Screen resources
+                XRRScreenResources* res = XRRGetScreenResources(display, RootWindow(display, screen));
+                if (res)
                 {
-                    // Get the list of supported depths
-                    int nbDepths = 0;
-                    int* depths = XListDepths(display, screen, &nbDepths);
-                    if (depths && (nbDepths > 0))
+                    RROutput output = XRRGetOutputPrimary(display, RootWindow(display, screen));
+                    XRROutputInfo* output_info = XRRGetOutputInfo(display, res, output);
+                    if (output_info)
                     {
-                        // Combine depths and sizes to fill the array of supported modes
-                        for (int i = 0; i < nbDepths; ++i)
+                        // Get the list of supported depths
+                        int nbDepths = 0;
+                        int* depths = XListDepths(display, screen, &nbDepths);
+                        if (depths && (nbDepths > 0))
                         {
-                            for (int j = 0; j < nbSizes; ++j)
+                            // Combine depths and sizes to fill the array of supported modes
+                            for (int i = 0; i < nbDepths; ++i)
                             {
-                                // Convert to VideoMode
-                                VideoMode mode(sizes[j].width, sizes[j].height, depths[i]);
+                                for (int j = 0; j < output_info->nmode; ++j)
+                                {
+                                    RRMode jmode = output_info->modes[j];
 
-                                Rotation currentRotation;
-                                XRRConfigRotations(config, &currentRotation);
+                                    for (int k = 0; k < res->nmode; ++k)
+                                    {
+                                        const XRRModeInfo *info = &res->modes[k];
 
-                                if (currentRotation == RR_Rotate_90 || currentRotation == RR_Rotate_270)
-                                    std::swap(mode.width, mode.height);
+                                        if (jmode == info->id)
+                                        {
+                                            // Convert to VideoMode
+                                            VideoMode mode(info->width, info->height, depths[i]);
 
-                                // Add it only if it is not already in the array
-                                if (std::find(modes.begin(), modes.end(), mode) == modes.end())
-                                    modes.push_back(mode);
+                                            Rotation currentRotation;
+                                            XRRConfigRotations(config, &currentRotation);
+
+                                            if (currentRotation == RR_Rotate_90 || currentRotation == RR_Rotate_270)
+                                                std::swap(mode.width, mode.height);
+
+                                            // Add it only if it is not already in the array
+                                            if (std::find(modes.begin(), modes.end(), mode) == modes.end())
+                                                modes.push_back(mode);
+                                        }
+                                    }
+                                }
                             }
+
+                            // Free the array of depths
+                            XFree(depths);
                         }
 
-                        // Free the array of depths
-                        XFree(depths);
+                        // Free Output info
+                        XRRFreeOutputInfo(output_info);
                     }
+
+                    // Free Screen resources
+                    XRRFreeScreenResources(res);
                 }
 
                 // Free the configuration instance
