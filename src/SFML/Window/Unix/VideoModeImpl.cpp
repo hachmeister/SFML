@@ -160,22 +160,38 @@ VideoMode VideoModeImpl::getDesktopMode()
             XRRScreenConfiguration* config = XRRGetScreenInfo(display, RootWindow(display, screen));
             if (config)
             {
-                // Get the current video mode
-                Rotation currentRotation;
-                int currentMode = XRRConfigCurrentConfiguration(config, &currentRotation);
-
-                // Get the available screen sizes
-                int nbSizes;
-                XRRScreenSize* sizes = XRRConfigSizes(config, &nbSizes);
-                if (sizes && (nbSizes > 0))
+                // Get Screen resources
+                XRRScreenResources* res = XRRGetScreenResources(display, RootWindow(display, screen));
+                if (res)
                 {
-                    desktopMode = VideoMode(sizes[currentMode].width, sizes[currentMode].height, DefaultDepth(display, screen));
+                    RROutput output = XRRGetOutputPrimary(display, RootWindow(display, screen));
+                    XRROutputInfo* output_info = XRRGetOutputInfo(display, res, output);
+                    if (output_info)
+                    {
+                        RRMode mode = output_info->modes[0];
 
-                    Rotation currentRotation;
-                    XRRConfigRotations(config, &currentRotation);
+                        for (int k = 0; k < res->nmode; ++k)
+                        {
+                            const XRRModeInfo *info = &res->modes[k];
 
-                    if (currentRotation == RR_Rotate_90 || currentRotation == RR_Rotate_270)
-                        std::swap(desktopMode.width, desktopMode.height);
+                            if (mode == info->id)
+                            {
+                                desktopMode = VideoMode(info->width, info->height, DefaultDepth(display, screen));
+
+                                Rotation currentRotation;
+                                XRRConfigRotations(config, &currentRotation);
+
+                                if (currentRotation == RR_Rotate_90 || currentRotation == RR_Rotate_270)
+                                    std::swap(desktopMode.width, desktopMode.height);
+                            }
+                        }
+
+                        // Free Output info
+                        XRRFreeOutputInfo(output_info);
+                    }
+
+                    // Free Screen resources
+                    XRRFreeScreenResources(res);
                 }
 
                 // Free the configuration instance
